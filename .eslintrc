@@ -1,0 +1,76 @@
+{
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/eslint-recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
+    "rules": {
+        "no-var": "error",
+        "no-unreachable": "warn",
+        "complexity": [
+            "warn",
+            4
+        ],
+        "max-depth": [
+            "warn",
+            4
+        ],
+        "max-params": [
+            "warn",
+            4
+        ],
+        "max-statements": [
+            "warn",
+            30
+        ],
+        "no-console": "off",
+        "no-debugger": "warn",
+        "prefer-template": "error",
+        "consistent-return": "error",
+        "class-methods-use-this": "error",
+        "no-warning-comments": "error",
+        "no-unused-vars": [
+            "error",
+            {
+                "argsIgnorePattern": "^_"
+            }
+        ],
+        "default-case": [
+            "error",
+            {
+                "commentPattern": "^skip\\sdefault"
+            }
+        ],
+        "indent": [
+            "warn",
+            4
+        ],
+        "linebreak-style": [
+            "error",
+            "windows"
+        ],
+        "no-trailing-spaces": [
+            "warn"
+        ],
+        "eol-last": [
+            "error",
+            "always"
+        ],
+        "quotes": [
+            "warn",
+            "single",
+            {
+                "allowTemplateLiterals": true
+            }
+        ],
+        "semi": [
+            "off", //"warn",
+            "never"
+        ],
+        "require-await": "error"
+    }
+}

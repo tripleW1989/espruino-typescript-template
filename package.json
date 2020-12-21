@@ -1,17 +1,55 @@
 {
+  "name": "espruino-typescript-await",
+  "version": "1.0.0",
+  "description": "Espruino async DHT22 sensor value reader in typescript",
+  "repository": {
+    "url": "https://github.com/VitriolCZ/espruino-typescript-await.git"
+  },
   "scripts": {
-    "build": "webpack --mode production",
-    "deploy": "espruino --no-ble -b 115200 -p COM8 dist/entry.bundle.js --verbose",
-    "deploy-watch": "espruino -w dist/bundle.js"
+    "build": "rollup -c",
+    "build-watch": "rollup -cw",
+    "deploy": "espruino --no-ble -b 115200 -p COM8 dist/bundle.js --board ESP8266_4MB --verbose",
+    "deploy-watch": "espruino --no-ble -w -b 115200 -p COM8 dist/bundle.js --board ESP8266_4MB --verbose",
+    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha --watch -r ts-node/register 'src/**/*.spec.ts' --watch-files 'src/**/*.ts'",
+    "lint": "eslint ./src/**/*.ts --fix",
+    "out": "espruino --board ESP8266_4MB --minify ./dist/bundle.js -o output.js -v"
   },
-  "dependencies": {
-    "@types/espruino": "^1.94.3",
-    "espruino": "^0.1.37",
-    "ts-loader": "^8.0.12",
-    "typescript": "^4.1.3",
-    "webpack": "^5.10.1"
-  },
+  "keywords": [
+    "espruino",
+    "typescript",
+    "async",
+    "await",
+    "DHT22"
+  ],
+  "author": "Jakub Ranosz",
+  "license": "MIT",
   "devDependencies": {
-    "webpack-cli": "^4.2.0"
+    "@types/chai": "^4.2.14",
+    "@types/chai-as-promised": "7.1.0",
+    "@types/espruino": "^1.94.3",
+    "@types/mocha": "^8.0.3",
+    "@types/sinon-chai": "3.2.3",
+    "@types/sinon": "4.3.1",
+    "@typescript-eslint/parser": "4.2.0",
+    "@typescript-eslint/eslint-plugin": "4.2.0",
+    "babel-core": "6.26.3",
+    "babel-plugin-transform-async-to-promises": "0.8.15",
+    "chai": "^4.2.0",
+    "chai-as-promised": "7.1.1",
+    "sinon-chai": "3.5.0",
+    "sinon": "9.0.3",
+    "espruino": "^0.1.34",
+    "fast-async": "^6.3.8",
+    "mocha": "^8.2.0",
+    "rollup": "^1.11.0",
+    "rollup-plugin-babel": "^3.0.3",
+    "rollup-plugin-eslint": "^7.0.0",
+    "rollup-plugin-filesize": "^9.0.2",
+    "rollup-plugin-sizes": "1.0.0",
+    "rollup-plugin-terser": "^5.3.1",
+    "rollup-plugin-typescript": "1.0.1",
+    "ts-node": "^9.0.0",
+    "tslib": "2.0.3",
+    "typescript": "4.0.5"
   }
 }
