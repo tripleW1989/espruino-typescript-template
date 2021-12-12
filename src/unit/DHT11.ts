@@ -11,15 +11,18 @@ export default class DHT11 {
   constructor(pin: Pin) {
     this.pin = pin;
   }
-  read(cb: (response: DHTResponse) => void, n: number = 10) {
+  read(cb: (response: DHTResponse) => void, n = 10) {
     if (!n) n = 10;
     let d = "";
 
     digitalWrite(this.pin, 0);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     pinMode(this.pin, "output"); // force pin state to output
     // start watching for state change
     this.watch = setWatch(
       (t) => {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         d += 0 | (t.time - t.lastTime > 0.00005);
       },
@@ -28,7 +31,9 @@ export default class DHT11 {
     );
     // raise pulse after 1ms
     setTimeout(() => {
-      pinMode(this.pin, "input_pullup");
+      pinMode(this.pin, "input_pullup", true);
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       pinMode(this.pin);
     }, 20);
     // stop looking after 50ms

@@ -1,9 +1,10 @@
 // // @ts-nocheck
 // import DHT11 from "./DHT11";
-import LCD from "./LCD";
-import DHT11, { DHTResponse } from "./DHT11";
-import wifi from "Wifi";
-const http = require("http");
+import LCD from './unit/LCD';
+import DHT11 from './unit/DHT11';
+import wifi from 'Wifi';
+import http from 'http';
+
 class Server {
   dht: DHT11;
   lcd: LCD;
@@ -12,7 +13,7 @@ class Server {
   lastRh = 0;
 
   constructor() {
-    console.log("i am here");
+    console.log('i am here');
     this.dht = new DHT11(NodeMCU.D1);
 
     this.isConnect = false;
@@ -23,26 +24,26 @@ class Server {
   sendTempAndRh = () => {
     const data = JSON.stringify({ temp: this.lastTemp, rh: this.lastRh });
     const options = {
-      host: "192.168.1.10", // host name
+      host: '192.168.1.10', // host name
       port: 5000, // (optional) port, defaults to 80
-      path: "/", // path sent to server
-      method: "POST", // HTTP command sent to server (must be uppercase 'GET', 'POST', etc)
-      protocol: "http:", // optional protocol - https: or http:
+      path: '/', // path sent to server
+      method: 'POST', // HTTP command sent to server (must be uppercase 'GET', 'POST', etc)
+      protocol: 'http:', // optional protocol - https: or http:
       headers: {
-        "Content-Type": "application/json",
-        "Content-Length": data.length,
+        'Content-Type': 'application/json',
+        'Content-Length': data.length,
       },
     };
     const req = http.request(options, function (res: any) {
-      res.on("data", function (data: string) {
+      res.on('data', function (data: string) {
         data = JSON.parse(data);
-        console.log("data: ", data);
+        console.log('data: ', data);
       });
-      res.on("close", function (data: string) {
-        console.log("Connection closed", data);
+      res.on('close', function (data: string) {
+        console.log('Connection closed', data);
       });
     });
-    req.on("error", function (e: Error) {
+    req.on('error', function (e: Error) {
       console.log(e);
     });
 
@@ -72,12 +73,12 @@ class Server {
   };
   startUp = () => {
     this.lcd = new LCD();
-    wifi.connect("ChinaNet-ikbF", { password: "k6cfrz7j" }, (err: any) => {
+    wifi.connect('ChinaNet-ikbF', { password: 'k6cfrz7j' }, (err: any) => {
       if (!err) {
-        console.log("wifi connect success");
+        console.log('wifi connect success');
         this.isConnect = true;
       } else {
-        console.log("wifi connect fail");
+        console.log('wifi connect fail');
       }
     });
   };

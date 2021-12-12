@@ -1,10 +1,10 @@
 /**
  * 管脚对应
-    Sck（时钟引脚）连接 nodemcu 的 D5
-    SDI（数据引脚）连接 nodemcu 的 D7
-    DC（数据/命令引脚）连 D3
-    CS（片选引脚）连 D8
-    D6 可以连接有触摸功能的 tft
+    Sck（时钟引脚）连接 nodemcu 的 D5
+    SDI（数据引脚）连接 nodemcu 的 D7
+    DC（数据/命令引脚）连 D3
+    CS（片选引脚）连 D8
+    D6 可以连接有触摸功能的 tft
  */
 
 // import * as ST7735 from "./ST7735";
@@ -20,12 +20,13 @@ class Display {
   constructor() {
     // NodeMCU.D5.set(); // Backlight On
     const colorPalette = new Uint16Array([0, 0xf80f, 0x001f, 0xffff]);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const spi = new SPI();
 
     spi.setup({ mosi: NodeMCU.D7 /* sda */, sck: NodeMCU.D5 /* scl */ });
-
-    this.g = require("ST7735").connect(
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    this.g = require('ST7735').connect(
       {
         palette: colorPalette,
         spi: spi,
