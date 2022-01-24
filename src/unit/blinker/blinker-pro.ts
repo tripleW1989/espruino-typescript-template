@@ -1,9 +1,7 @@
-import { BlinkerDevice } from "./blinker";
-
+import { authOption, BlinkerDevice } from './blinker';
 
 export class BlinkerProDevice extends BlinkerDevice {
-
-    constructor(type, key) {
-        super(type, key)
+    constructor(type: string, key: authOption) {
+        super(type, key);
     }
 }

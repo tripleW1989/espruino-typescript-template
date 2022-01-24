@@ -1,3 +1,5 @@
+/* eslint-disable complexity */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import * as mqtt from 'mqtt';
 import axios from 'axios';
 import { BehaviorSubject, Subject } from 'rxjs';
@@ -5,26 +7,28 @@ import { Widget } from './widget';
 import bonjour from 'bonjour';
 import * as WebSocket from 'ws';
 import * as schedule from 'node-schedule';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import * as pauseable from 'pauseable';
-import { tip, warn, error, timerLog, mqttLog } from './debug'
-import getMAC from 'getmac'
+import { tip, warn, error, timerLog, mqttLog } from './debug';
+import getMAC from 'getmac';
 
 import { VoiceAssistant } from './voice-assistant';
 
 export interface Message {
-    fromDevice?: string,
-    data: any
+    fromDevice?: string;
+    data: any;
+    get: any;
 }
 
 export interface authOption {
-    "authKey"?: string,
-    "version"?: string,
-    "protocol"?: string,
-    "webSocket"?: boolean
+    authKey?: string;
+    version?: string;
+    protocol?: string;
+    webSocket?: boolean;
 }
 
 export class BlinkerDevice {
-
     options: authOption = {
         version: '1.0',
         protocol: 'mqtts',
@@ -33,146 +37,145 @@ export class BlinkerDevice {
 
     mqttClient: mqtt.MqttClient;
 
-    wsServer;
-    ws;
+    wsServer: WebSocket.Server;
+    ws: { on: (arg0: string, arg1: (message: any) => void) => void };
 
     config: {
-        broker: string,
-        deviceName: string,
-        host: string,
-        iotId: string,
-        iotToken: string,
-        port: string,
-        productKey: string,
-        uuid: string,
-        authKey?: string
+        broker: string;
+        deviceName: string;
+        host: string;
+        iotId: string;
+        iotToken: string;
+        port: string;
+        productKey: string;
+        uuid: string;
+        authKey?: string;
     };
 
-    subTopic;
-    pubTopic;
+    subTopic: string | string[] | mqtt.ISubscriptionMap;
+    pubTopic: string;
 
-    deviceName;
+    deviceName: any;
 
-    targetDevice;
+    targetDevice: string | undefined;
 
-    dataRead = new Subject<Message>()
+    dataRead = new Subject<Message>();
 
-    heartbeat = new Subject<Message>()
+    heartbeat = new Subject<Message>();
 
-    realtimeRequest = new Subject<string[]>()
+    realtimeRequest = new Subject<string[]>();
 
     builtinSwitch = new BuiltinSwitch();
 
-    configReady = new BehaviorSubject(false)
+    configReady = new BehaviorSubject(false);
 
-    widgetKeyList = []
-    widgetDict = {}
+    widgetKeyList = [];
+    widgetDict = {};
 
-    sharedUserList = []
+    sharedUserList = [];
 
-    private tempData;
-    private tempDataPath;
+    private tempData: { [x: string]: any };
+    private tempDataPath: string;
 
     constructor(authkey = '', options?: authOption) {
         if (authkey == '') {
-            authkey = loadJsonFile('.auth.json').authkey
+            authkey = loadJsonFile('.auth.json').authkey;
             console.log(authkey);
-
         }
         for (const key in options) {
-            this.options[key] = options[key]
+            this.options[key] = options[key];
         }
-        this.options['authKey'] = authkey
-        this.init(authkey)
+        this.options['authKey'] = authkey;
+        this.init(authkey);
     }
 
-    init(authkey) {
-        axios.get(API.AUTH, { params: this.options }).then(async resp => {
+    init(authkey: string | undefined) {
+        axios.get(API.AUTH, { params: this.options }).then(async (resp) => {
             console.log(resp.data);
             if (resp.data.message != 1000) {
                 error(resp.data);
-                return
+                return;
             }
-            this.config = resp.data.detail
-            this.config['authKey'] = authkey
+            this.config = resp.data.detail;
+            this.config['authKey'] = authkey;
             if (this.config.broker == 'aliyun') {
-                mqttLog('broker:aliyun')
-                this.initBroker_Aliyun()
+                mqttLog('broker:aliyun');
+                this.initBroker_Aliyun();
             } else if (this.config.broker == 'blinker') {
-                mqttLog('broker:blinker')
-                this.initBroker_Blinker()
+                mqttLog('broker:blinker');
+                this.initBroker_Blinker();
             }
-            await this.connectBroker()
-            this.addWidget(this.builtinSwitch)
-            this.getShareInfo()
-            this.initLocalService()
-            // 加载暂存数据  
-            this.tempDataPath = `.${this.config.deviceName}.json`
-            this.tempData = loadJsonFile(this.tempDataPath)
-            this.loadTimingTask()
-            this.configReady.next(true)
-        })
-
+            await this.connectBroker();
+            this.addWidget(this.builtinSwitch);
+            this.getShareInfo();
+            this.initLocalService();
+            // 加载暂存数据
+            this.tempDataPath = `.${this.config.deviceName}.json`;
+            this.tempData = loadJsonFile(this.tempDataPath);
+            this.loadTimingTask();
+            this.configReady.next(true);
+        });
     }
 
-    ready(): Promise<Boolean> {
-        return new Promise((resolve, reject) => {
+    // eslint-disable-next-line class-methods-use-this
+    ready(): Promise<boolean> {
+        return new Promise((resolve, _reject) => {
             setTimeout(() => {
-                resolve(true)
+                resolve(true);
             }, 5000);
-        })
+        });
     }
 
     // 本地服务：MDNS\WS SERVER
     initLocalService() {
-        if (!this.options.webSocket) return
+        if (!this.options.webSocket) return;
         // 开启mdns服务
         bonjour().publish({
             name: this.config.deviceName,
             type: 'blinker',
-            host: this.config.deviceName + '.local',
+            host: `${this.config.deviceName}.local`,
             port: 81,
             txt: { mac: getMAC().replace(/:/g, '').toUpperCase() }
-        })
+        });
         this.wsServer = new WebSocket.Server({ port: 81 });
-        this.wsServer.on('connection', ws => {
+        this.wsServer.on('connection', (ws: { send: (arg0: string) => void }) => {
             tip('local connection');
-            ws.send(`{"state":"connected"}`)
-            this.ws = ws
-            this.ws.on('message', (message) => {
+            ws.send(`{"state":"connected"}`);
+            this.ws = ws;
+            this.ws.on('message', (message: string) => {
                 let data;
                 let fromDevice;
                 try {
-                    data = JSON.parse(message)
-                    this.processData(data, fromDevice)
+                    data = JSON.parse(message);
+                    this.processData(data, fromDevice);
                 } catch (error) {
                     console.log(error);
                     console.log(message);
                 }
             });
-        })
+        });
         this.wsServer.on('close', () => {
             console.log('ws client disconnect');
-        })
+        });
     }
 
     getShareInfo() {
-        axios.get(API.SHARE + `?deviceName=${this.config.deviceName}&key=${this.config.authKey}`).then(resp => {
+        axios.get(`${API.SHARE}?deviceName=${this.config.deviceName}&key=${this.config.authKey}`).then((resp) => {
             if (resp.data.message != 1000) {
                 error(resp.data);
-                return
+                return;
             }
-            this.sharedUserList = resp.data.detail.users
-        })
+            this.sharedUserList = resp.data.detail.users;
+        });
     }
 
-    exasubTopic;
-    exapubTopic;
+    exasubTopic: string;
+    exapubTopic: string;
     initBroker_Aliyun() {
         this.subTopic = `/${this.config.productKey}/${this.config.deviceName}/r`;
         this.pubTopic = `/${this.config.productKey}/${this.config.deviceName}/s`;
-        this.exasubTopic = `/sys/${this.config.productKey}/${this.config.deviceName}/rrpc/request/+`
-        this.exapubTopic = `/sys/${this.config.productKey}/${this.config.deviceName}/rrpc/response/`
+        this.exasubTopic = `/sys/${this.config.productKey}/${this.config.deviceName}/rrpc/request/+`;
+        this.exapubTopic = `/sys/${this.config.productKey}/${this.config.deviceName}/rrpc/response/`;
         this.targetDevice = this.config.uuid;
     }
 
@@ -183,8 +186,8 @@ export class BlinkerDevice {
     }
 
     connectBroker() {
-        return new Promise((resolve, reject) => {
-            this.mqttClient = mqtt.connect(this.config.host + ':' + this.config.port, {
+        return new Promise((resolve, _reject) => {
+            this.mqttClient = mqtt.connect(`${this.config.host}:${this.config.port}`, {
                 clientId: this.config.deviceName,
                 username: this.config.iotId,
                 password: this.config.iotToken
@@ -194,130 +197,130 @@ export class BlinkerDevice {
                 mqttLog('blinker connected');
                 this.mqttClient.subscribe(this.subTopic);
                 this.startHeartbeat2cloud();
-                resolve(true)
-            })
+                resolve(true);
+            });
 
             this.mqttClient.on('message', (topic, message) => {
                 if (topic == this.subTopic) {
                     let data;
-                    let fromDevice;
+                    let fromDevice: any;
 
                     try {
-                        let messageString = u8aToString(message)
+                        const messageString = u8aToString(message);
                         // console.log(topic);
                         console.log(messageString);
 
-                        let messageObject = JSON.parse(messageString)
-                        fromDevice = messageObject.fromDevice
-                        data = messageObject.data
-                        this.targetDevice = fromDevice
+                        const messageObject = JSON.parse(messageString);
+                        fromDevice = messageObject.fromDevice;
+                        data = messageObject.data;
+                        this.targetDevice = fromDevice;
                     } catch (error) {
                         console.log(error);
                     }
                     // 检查
-                    if (this.sharedUserList.indexOf(fromDevice) < 0 && fromDevice != this.config.uuid) return
-                    this.processData(data, fromDevice)
+                    if (this.sharedUserList.indexOf(fromDevice) < 0 && fromDevice != this.config.uuid) return;
+                    this.processData(data, fromDevice);
                 }
-            })
+            });
 
-            this.mqttClient.on('close', (err) => {
+            this.mqttClient.on('close', (_err: any) => {
                 mqttLog('blinker close');
-                this.stopHeartbeat2cloud()
-            })
+                this.stopHeartbeat2cloud();
+            });
 
             this.mqttClient.on('error', (err) => {
                 mqttLog(err);
-            })
-        })
+            });
+        });
     }
 
     // 云端心跳
-    timer_heartbeat2cloud;
+    timer_heartbeat2cloud: NodeJS.Timeout;
     startHeartbeat2cloud() {
-        axios.get(API.HEARTBEAT + `?deviceName=${this.config.deviceName}&key=${this.config.authKey}&heartbeat=600`)
+        axios.get(`${API.HEARTBEAT}?deviceName=${this.config.deviceName}&key=${this.config.authKey}&heartbeat=600`);
         this.timer_heartbeat2cloud = setInterval(() => {
-            axios.get(API.HEARTBEAT + `?deviceName=${this.config.deviceName}&key=${this.config.authKey}&heartbeat=600`)
-        }, 599000)
+            axios.get(`${API.HEARTBEAT}?deviceName=${this.config.deviceName}&key=${this.config.authKey}&heartbeat=600`);
+        }, 599000);
     }
 
     stopHeartbeat2cloud() {
-        clearInterval(this.timer_heartbeat2cloud)
+        clearInterval(this.timer_heartbeat2cloud);
     }
 
-    processData(data, fromDevice = this.targetDevice) {
+    processData(data: Message | undefined, fromDevice = this.targetDevice) {
         if (typeof data == 'string' || typeof data == 'number') {
             this.dataRead.next({
                 fromDevice: fromDevice,
                 data: data
-            })
-            return
+            });
+            return;
         }
         if (typeof data['get'] != 'undefined') {
             if (data['get'] == 'state') {
                 this.heartbeat.next(data);
-                this.sendMessage(`{"state":"online"}`)
+                this.sendMessage(`{"state":"online"}`);
             } else if (data['get'] == 'timing') {
                 // tip('反馈定时任务')
                 // console.log(this.getTimingData());
-                this.sendMessage(this.getTimingData())
+                this.sendMessage(this.getTimingData());
             } else if (data['get'] == 'countdown') {
                 // tip('反馈倒计时任务')
-                this.sendMessage(this.getCountdownData())
+                this.sendMessage(this.getCountdownData());
             }
         } else if (typeof data['set'] != 'undefined') {
             if (typeof data['set']['timing'] != 'undefined') {
-                if (typeof data['set']['timing'][0]["dlt"] != 'undefined') {
-                    this.delTimingData(data['set']['timing'][0]["dlt"])
+                if (typeof data['set']['timing'][0]['dlt'] != 'undefined') {
+                    this.delTimingData(data['set']['timing'][0]['dlt']);
                 } else {
                     this.setTimingData(data['set']['timing']);
                 }
-                this.sendMessage(this.getTimingData())
+                this.sendMessage(this.getTimingData());
             } else if (typeof data['set']['countdown'] != 'undefined') {
                 // tip('设定倒计时任务')
                 this.setCountdownData(data['set']['countdown']);
-                this.sendMessage(this.getCountdownData())
+                this.sendMessage(this.getCountdownData());
             }
         } else if (typeof data['rt'] != 'undefined') {
             this.realtimeRequest.next(data['rt']);
         } else {
             // tip(JSON.stringify(data));
-            let otherData = {}
+            let otherData = {};
             for (const key in data) {
                 // 处理组件数据
                 if (this.widgetKeyList.indexOf(key) > -1) {
-                    let widget: Widget = this.widgetDict[key]
+                    const widget: Widget = this.widgetDict[key];
                     widget.change.next({
                         fromDevice: fromDevice,
-                        data: data[key],
-                    })
+                        data: data[key]
+                    });
                 } else {
-                    let temp = {};
-                    temp[key] = data[key]
-                    otherData = Object.assign(otherData, temp)
+                    const temp = {};
+                    temp[key] = data[key];
+                    otherData = Object.assign(otherData, temp);
                 }
             }
             if (JSON.stringify(otherData) != '{}')
                 this.dataRead.next({
                     fromDevice: fromDevice,
                     data: otherData
-                })
+                });
         }
     }
 
     sendTimers = {};
 
-    messageDataCache = {}
+    messageDataCache = {};
 
     sendMessage(message: string | Object, toDevice = this.targetDevice) {
         // console.log(message);
         let sendMessage: string;
-        if (typeof message == 'object') sendMessage = JSON.stringify(message)
-        else sendMessage = message
+        if (typeof message == 'object') sendMessage = JSON.stringify(message);
+        else sendMessage = message;
         if (isJson(sendMessage)) {
             if (typeof this.messageDataCache[toDevice] == 'undefined') this.messageDataCache[toDevice] = '';
-            let ob = this.messageDataCache[toDevice] == '' ? {} : JSON.parse(this.messageDataCache[toDevice]);
-            let ob2 = JSON.parse(sendMessage)
-            this.messageDataCache[toDevice] = JSON.stringify(Object.assign(ob, ob2))
+            const ob = this.messageDataCache[toDevice] == '' ? {} : JSON.parse(this.messageDataCache[toDevice]);
+            const ob2 = JSON.parse(sendMessage);
+            this.messageDataCache[toDevice] = JSON.stringify(Object.assign(ob, ob2));
             if (typeof this.sendTimers[toDevice] != 'undefined') clearTimeout(this.sendTimers[toDevice]);
             //检查设备是否是本地设备,是否已连接
             // let deviceInLocal = false;
@@ -326,94 +329,104 @@ export class BlinkerDevice {
             //         deviceInLocal = true
             // }
             this.sendTimers[toDevice] = setTimeout(() => {
-                this.mqttClient.publish(this.pubTopic, formatMess2Device(this.config.deviceName, toDevice, this.messageDataCache[toDevice]))
+                this.mqttClient.publish(
+                    this.pubTopic,
+                    formatMess2Device(this.config.deviceName, toDevice, this.messageDataCache[toDevice])
+                );
                 this.messageDataCache[toDevice] = '';
                 delete this.sendTimers[toDevice];
-            }, 100)
+            }, 100);
         } else {
             console.log('not json');
-            if (!isNumber(sendMessage)) sendMessage = `"${sendMessage}"`
-            this.mqttClient.publish(this.pubTopic, formatMess2Device(this.config.deviceName, toDevice, sendMessage))
+            if (!isNumber(sendMessage)) sendMessage = `"${sendMessage}"`;
+            this.mqttClient.publish(this.pubTopic, formatMess2Device(this.config.deviceName, toDevice, sendMessage));
         }
     }
 
     // toDevice
-    sendMessage2Device(message, toDevice = this.targetDevice) {
-        this.sendMessage(message, toDevice)
+    sendMessage2Device(message: string | Object, toDevice = this.targetDevice) {
+        this.sendMessage(message, toDevice);
     }
     // toGrounp
-    sendMessage2Grounp(message, toGrounp) {
-
-    }
+    sendMessage2Grounp(_message: any, _toGrounp: any) {}
     // toStorage
     storageCache = [];
-    tsDataTimer;
+    tsDataTimer: NodeJS.Timeout;
     saveTsData(data: any) {
         if (this.config.broker != 'blinker') {
             warn('saveTsData:仅可用于blinker broker');
-            return
+            return;
         }
         // console.log(JSON.stringify(this.storageCache));
         clearTimeout(this.tsDataTimer);
-        let currentData = Object.assign({ date: Math.floor((new Date).getTime() / 1000) }, data)
-        if (this.storageCache.length == 0 || currentData.date - this.storageCache[this.storageCache.length - 1].date >= 5) {
-            this.storageCache.push(currentData)
+        const currentData = Object.assign({ date: Math.floor(new Date().getTime() / 1000) }, data);
+        if (
+            this.storageCache.length == 0 ||
+            currentData.date - this.storageCache[this.storageCache.length - 1].date >= 5
+        ) {
+            this.storageCache.push(currentData);
         }
-        if (this.storageCache[this.storageCache.length - 1].date - this.storageCache[0].date >= 60 || this.storageCache.length >= 12) {
-            this.sendTsData()
+        if (
+            this.storageCache[this.storageCache.length - 1].date - this.storageCache[0].date >= 60 ||
+            this.storageCache.length >= 12
+        ) {
+            this.sendTsData();
         } else
             this.tsDataTimer = setTimeout(() => {
-                this.sendTsData()
+                this.sendTsData();
             }, 60000);
     }
 
     private sendTsData() {
-        let data = JSON.stringify(this.storageCache)
+        const data = JSON.stringify(this.storageCache);
         if (data.length > 10240) {
             error('saveTsData:单次上传数据长度超过10Kb,请减少数据内容，或降低数据上传频率');
-            return
+            return;
         }
-        tip('sendTsData')
-        this.mqttClient.publish(this.pubTopic, formatMess2StorageTs(this.config.deviceName, 'ts', data))
-        this.storageCache = []
+        tip('sendTsData');
+        this.mqttClient.publish(this.pubTopic, formatMess2StorageTs(this.config.deviceName, 'ts', data));
+        this.storageCache = [];
     }
-    objectDataTimer
+    objectDataTimer: NodeJS.Timeout;
     saveObjectData(data: any) {
         if (this.config.broker != 'blinker') {
-            warn('saveObjectData:仅可用于blinker broker')
-            return
+            warn('saveObjectData:仅可用于blinker broker');
+            return;
         }
-        let dataCache;
+        let dataCache: any;
         if (typeof data == 'string') {
             if (!isJson(data)) {
-                error(`saveObjectData:数据不是对象`)
-                return
+                error(`saveObjectData:数据不是对象`);
+                return;
             } else {
-                dataCache = JSON.parse(data)
+                dataCache = JSON.parse(data);
             }
         } else {
-            dataCache = data
+            dataCache = data;
         }
         clearTimeout(this.objectDataTimer);
         this.objectDataTimer = setTimeout(() => {
-            tip('saveObjectData')
-            this.mqttClient.publish(this.pubTopic, formatMess2StorageOt(this.config.deviceName, 'ot', JSON.stringify(dataCache)))
+            tip('saveObjectData');
+            this.mqttClient.publish(
+                this.pubTopic,
+                formatMess2StorageOt(this.config.deviceName, 'ot', JSON.stringify(dataCache))
+            );
         }, 5000);
     }
-    textDataTimer
+    textDataTimer: NodeJS.Timeout;
     saveTextData(data: string) {
         if (this.config.broker != 'blinker') {
             warn('saveTextData:仅可用于blinker broker');
-            return
+            return;
         }
         if (data.length > 1024) {
             error('saveTextData:数据长度超过1024字节');
-            return
+            return;
         }
         clearTimeout(this.textDataTimer);
         this.textDataTimer = setTimeout(() => {
-            tip('saveTextData')
-            this.mqttClient.publish(this.pubTopic, formatMess2StorageTt(this.config.deviceName, 'tt', data))
+            tip('saveTextData');
+            this.mqttClient.publish(this.pubTopic, formatMess2StorageTt(this.config.deviceName, 'tt', data));
         }, 5000);
     }
 
@@ -421,304 +434,312 @@ export class BlinkerDevice {
         widget.device = this;
         this.widgetKeyList.push(widget.key);
         this.widgetDict[widget.key] = widget;
-        return widget
+        return widget;
     }
 
     addVoiceAssistant(voiceAssistant: VoiceAssistant) {
-        this.configReady.subscribe(state => {
+        this.configReady.subscribe((state) => {
             if (state) {
-                let params = Object.assign({ token: this.config.iotToken }, voiceAssistant.vaType)
-                axios.post(API.VOICE_ASSISTANT, params).then(resp => {
+                const params = Object.assign({ token: this.config.iotToken }, voiceAssistant.vaType);
+                axios.post(API.VOICE_ASSISTANT, params).then((_resp) => {
                     // console.log(resp);
                     voiceAssistant.device = this;
                     voiceAssistant.listen();
-                })
+                });
             }
-        })
-        return voiceAssistant
+        });
+        return voiceAssistant;
     }
 
     vibrate(time = 500) {
-        this.sendMessage(`{"vibrate":${time}}`)
+        this.sendMessage(`{"vibrate":${time}}`);
     }
 
     sendSmsTimeout = true;
     sms(text: string) {
         if (!this.sendSmsTimeout) {
-            warn('sendSms:too frequent requests')
-            return
+            warn('sendSms:too frequent requests');
+            return;
         }
         this.sendSmsTimeout = false;
         setTimeout(() => {
-            this.sendSmsTimeout = true
+            this.sendSmsTimeout = true;
         }, 60000);
-        axios.post(API.SMS, {
-            'deviceName': this.config.deviceName,
-            'key': this.config.authKey,
-            'msg': text
-        }).then(resp => {
-            if (resp.data.message != 1000)
-                error(resp.data);
-        })
+        axios
+            .post(API.SMS, {
+                deviceName: this.config.deviceName,
+                key: this.config.authKey,
+                msg: text
+            })
+            .then((resp) => {
+                if (resp.data.message != 1000) error(resp.data);
+            });
     }
 
     wechat(title: string, state: string, text: string) {
-        axios.post(API.WECHAT, {
-            'deviceName': this.config.deviceName,
-            'key': this.config.authKey,
-            'title': title,
-            'state': state,
-            'msg': text
-        }).then(resp => {
-            if (resp.data.message != 1000)
-                error(resp.data);
-        })
+        axios
+            .post(API.WECHAT, {
+                deviceName: this.config.deviceName,
+                key: this.config.authKey,
+                title: title,
+                state: state,
+                msg: text
+            })
+            .then((resp) => {
+                if (resp.data.message != 1000) error(resp.data);
+            });
     }
 
     push(text: string) {
-        axios.post(API.PUSH, {
-            'deviceName': this.config.deviceName,
-            'key': this.config.authKey,
-            'msg': text
-        }).then(resp => {
-            if (resp.data.message != 1000)
-                error(resp.data);
-        })
+        axios
+            .post(API.PUSH, {
+                deviceName: this.config.deviceName,
+                key: this.config.authKey,
+                msg: text
+            })
+            .then((resp) => {
+                if (resp.data.message != 1000) error(resp.data);
+            });
     }
 
-    notice(message) {
-        this.sendMessage(`{"notice":"${message}"}`)
+    notice(message: any) {
+        this.sendMessage(`{"notice":"${message}"}`);
     }
 
     // 定时功能
     timingTasks = [];
-    private setTimingData(data) {
-        timerLog('set timing task')
-        if (typeof this.tempData['timing'] == 'undefined') this.tempData['timing'] = []
-        this.tempData['timing'][data[0].task] = data[0]
-        this.addTimingTask(data[0])
+    private setTimingData(data: any[]) {
+        timerLog('set timing task');
+        if (typeof this.tempData['timing'] == 'undefined') this.tempData['timing'] = [];
+        this.tempData['timing'][data[0].task] = data[0];
+        this.addTimingTask(data[0]);
     }
 
     private getTimingData() {
-        if (typeof this.tempData['timing'] == 'undefined')
-            return { timing: [] }
-        else
-            return { timing: this.tempData['timing'] }
+        if (typeof this.tempData['timing'] == 'undefined') return { timing: [] };
+        else return { timing: this.tempData['timing'] };
     }
 
-    private delTimingData(taskId) {
-        this.delTimingTask(taskId)
-        arrayRemove(this.tempData['timing'], taskId)
+    private delTimingData(taskId: any) {
+        this.delTimingTask(taskId);
+        arrayRemove(this.tempData['timing'], taskId);
         for (let index = taskId; index < this.tempData['timing'].length; index++)
-            this.tempData['timing'][index].task = index
+            this.tempData['timing'][index].task = index;
     }
 
-    private addTimingTask(taskData) {
+    private addTimingTask(taskData: {
+        ena: number;
+        task: string | number;
+        tim: number;
+        day: string | any[];
+        act: any[];
+    }) {
         // console.log(taskData);
         if (taskData.ena == 0) {
-            this.disableTimingTask(taskData.task)
-            return
+            this.disableTimingTask(taskData.task);
+            return;
         }
-        let hour = Math.floor(taskData.tim / 60);
-        let minute = taskData.tim % 60
-        let dayOfWeek = []
+        const hour = Math.floor(taskData.tim / 60);
+        const minute = taskData.tim % 60;
+        const dayOfWeek = [];
         for (let index = 0; index < taskData.day.length; index++) {
-            if (taskData.day[index] == '1')
-                dayOfWeek.push(index)
+            if (taskData.day[index] == '1') dayOfWeek.push(index);
         }
-        let config = {
+        const config = {
             minute: minute,
             hour: hour
-        }
+        };
         if (dayOfWeek.length == 1) {
-            config['dayOfWeek'] = dayOfWeek[0]
+            config['dayOfWeek'] = dayOfWeek[0];
         } else if (dayOfWeek.length > 1) {
-            config['dayOfWeek'] = dayOfWeek
+            config['dayOfWeek'] = dayOfWeek;
         }
         // console.log(config);
         this.timingTasks[taskData.task] = schedule.scheduleJob(config, () => {
-            this.processData(taskData.act[0])
-            this.disableTimingTask(taskData.task)
-            this.sendMessage(this.getTimingData())
-            timerLog('timer task done')
-        })
-        saveJsonFile(this.tempDataPath, this.tempData)
+            this.processData(taskData.act[0]);
+            this.disableTimingTask(taskData.task);
+            this.sendMessage(this.getTimingData());
+            timerLog('timer task done');
+        });
+        saveJsonFile(this.tempDataPath, this.tempData);
     }
 
-    private delTimingTask(taskId) {
+    private delTimingTask(taskId: any) {
         this.disableTimingTask(taskId);
-        arrayRemove(this.timingTasks, taskId)
-        saveJsonFile(this.tempDataPath, this.tempData)
+        arrayRemove(this.timingTasks, taskId);
+        saveJsonFile(this.tempDataPath, this.tempData);
     }
 
-    private disableTimingTask(taskId) {
+    private disableTimingTask(taskId: string | number) {
         this.tempData['timing'][taskId].ena = 0;
         this.timingTasks[taskId].cancel();
-        saveJsonFile(this.tempDataPath, this.tempData)
+        saveJsonFile(this.tempDataPath, this.tempData);
     }
 
-    // 重启后，加载定时配置  
+    // 重启后，加载定时配置
     private loadTimingTask() {
-        if (typeof this.tempData['timing'] == 'undefined') return
-        timerLog("load timing tasks")
+        if (typeof this.tempData['timing'] == 'undefined') return;
+        timerLog('load timing tasks');
         for (let index = 0; index < this.tempData['timing'].length; index++) {
             const task = this.tempData['timing'][index];
-            if (task.ena == 1)
-                this.addTimingTask(task)
+            if (task.ena == 1) this.addTimingTask(task);
         }
     }
 
-    // 倒计时功能  
-    countdownTimer;
-    countdownTimer2;
+    // 倒计时功能
+    countdownTimer: { pause: () => void; resume: () => void; clear: () => void };
+    countdownTimer2: NodeJS.Timeout;
 
-    setCountdownData(data) {
+    setCountdownData(data: string) {
         if (data == 'dlt') {
-            timerLog('countdown stop')
-            this.tempData['countdown'] = false
-            this.clearCountdownTimer()
-            return
+            timerLog('countdown stop');
+            this.tempData['countdown'] = false;
+            this.clearCountdownTimer();
+            return;
         } else if (JSON.stringify(data).indexOf(`{"run":1}`) > -1 || JSON.stringify(data).indexOf(`{"run":0}`) > -1) {
-            this.tempData['countdown']['run'] = data.run
+            this.tempData['countdown']['run'] = data.run;
             if (this.tempData['countdown']['run'] == 0) {
-                timerLog('countdown pause')
-                this.countdownTimer.pause()
-                this.countdownTimer2.pause()
+                timerLog('countdown pause');
+                this.countdownTimer.pause();
+                this.countdownTimer2.pause();
             } else if (this.tempData['countdown']['run'] == 1) {
-                timerLog('countdown resume')
-                this.countdownTimer.resume()
-                this.countdownTimer2.resume()
+                timerLog('countdown resume');
+                this.countdownTimer.resume();
+                this.countdownTimer2.resume();
             }
-            return
+            return;
         }
-        timerLog('countdown start')
+        timerLog('countdown start');
         this.tempData['countdown'] = data;
-        this.tempData['countdown']['rtim'] = 0
+        this.tempData['countdown']['rtim'] = 0;
         this.clearCountdownTimer();
         this.countdownTimer = pauseable.setTimeout(() => {
             this.clearCountdownTimer();
-            timerLog('countdown done')
+            timerLog('countdown done');
             this.processData(this.tempData['countdown'].act[0]);
             // 关闭倒计时
-            this.tempData['countdown'] = false
-            this.sendMessage(this.getCountdownData())
+            this.tempData['countdown'] = false;
+            this.sendMessage(this.getCountdownData());
         }, data.ttim * 60 * 1000);
         this.countdownTimer2 = pauseable.setInterval(() => {
             this.tempData['countdown']['rtim']++;
-            if (this.tempData['countdown']['rtim'] == this.tempData['countdown']['ttim']) clearInterval(this.countdownTimer2)
-        }, 60 * 1000)
+            if (this.tempData['countdown']['rtim'] == this.tempData['countdown']['ttim'])
+                clearInterval(this.countdownTimer2);
+        }, 60 * 1000);
     }
 
     clearCountdownTimer() {
-        if (typeof this.countdownTimer != 'undefined')
-            this.countdownTimer.clear()
-        if (typeof this.countdownTimer != 'undefined')
-            this.countdownTimer2.clear()
+        if (typeof this.countdownTimer != 'undefined') this.countdownTimer.clear();
+        if (typeof this.countdownTimer != 'undefined') this.countdownTimer2.clear();
     }
 
     getCountdownData() {
-        if (typeof this.tempData['countdown'] == 'undefined')
-            return { countdown: false }
-        else
-            return { countdown: this.tempData['countdown'] }
+        if (typeof this.tempData['countdown'] == 'undefined') return { countdown: false };
+        else return { countdown: this.tempData['countdown'] };
     }
 
-    // 气象数据获取  
+    // 气象数据获取
     getWeather(cityCode = null) {
-        let params = {
+        const params = {
             device: this.config.deviceName,
             key: this.config.iotToken
-        }
+        };
         if (cityCode != null) {
-            params['code'] = cityCode
+            params['code'] = cityCode;
         }
-        return axios.get(API.WEATHER, {
-            params: params
-        }).then((resp) => {
-            if (resp.data.message == 1000)
-                return resp.data.detail
-            else {
-                error('getWeather 超出限制')
-                return
-            }
-        })
+        return axios
+            .get(API.WEATHER, {
+                params: params
+            })
+            .then((resp) => {
+                if (resp.data.message == 1000) return resp.data.detail;
+                else {
+                    error('getWeather 超出限制');
+                    return;
+                }
+            });
     }
 
     getWeatherForecast(cityCode = null) {
-        let params = {
+        const params = {
             device: this.config.deviceName,
             key: this.config.iotToken
-        }
+        };
         if (cityCode != null) {
-            params['code'] = cityCode
+            params['code'] = cityCode;
         }
-        return axios.get(API.WEATHER_FORECAST, {
-            params: params
-        }).then((resp) => {
-            if (resp.data.message == 1000)
-                return resp.data.detail
-            else {
-                error('getWeatherForecast 超出限制')
-                return
-            }
-        })
+        return axios
+            .get(API.WEATHER_FORECAST, {
+                params: params
+            })
+            .then((resp) => {
+                if (resp.data.message == 1000) return resp.data.detail;
+                else {
+                    error('getWeatherForecast 超出限制');
+                    return;
+                }
+            });
     }
 
     getAir(cityCode = null) {
-        let params = {
+        const params = {
             device: this.config.deviceName,
             key: this.config.iotToken
-        }
+        };
         if (cityCode != null) {
-            params['code'] = cityCode
+            params['code'] = cityCode;
         }
-        return axios.get(API.AIR, {
-            params: params
-        }
-        ).then((resp) => {
-            if (resp.data.message == 1000)
-                return resp.data.detail
-            else {
-                error('getAir 超出限制')
-                return
-            }
-        })
+        return axios
+            .get(API.AIR, {
+                params: params
+            })
+            .then((resp) => {
+                if (resp.data.message == 1000) return resp.data.detail;
+                else {
+                    error('getAir 超出限制');
+                    return;
+                }
+            });
     }
 
-    log(logString) {
-        return axios.post(API.LOG, {
-            token: this.config.iotToken,
-            data: [[(new Date()).getTime().toString().substr(0, 10), logString]]
-        }).then((resp: any) => {
-            if (resp.data.message == 1000)
-                tip('log2Cloud')
-            return resp.data
-        })
+    log(logString: any) {
+        return axios
+            .post(API.LOG, {
+                token: this.config.iotToken,
+                data: [[new Date().getTime().toString().substr(0, 10), logString]]
+            })
+            .then((resp: any) => {
+                if (resp.data.message == 1000) tip('log2Cloud');
+                return resp.data;
+            });
     }
 
-    setPosition(lng, lat) {
-        return axios.post(API.POSITION, {
-            token: this.config.iotToken,
-            data: [[(new Date()).getTime().toString().substr(0, 10), [lng, lat]]]
-        }).then((resp: any) => {
-            if (resp.data.message == 1000)
-                tip('position2Cloud')
-            return resp.data
-        })
+    setPosition(lng: any | string, lat: any | string) {
+        return axios
+            .post(API.POSITION, {
+                token: this.config.iotToken,
+                data: [[new Date().getTime().toString().substr(0, 10), [lng, lat]]]
+            })
+            .then((resp: any) => {
+                if (resp.data.message == 1000) tip('position2Cloud');
+                return resp.data;
+            });
     }
 
     // 实时数据传输功能
-    realtimeTasks = {}
+    realtimeTasks = {};
     sendRtData(key: string, func: Function, time = 1000) {
-        if (typeof this.realtimeTasks[key] != 'undefined') this.realtimeTasks[key].cancel()
+        if (typeof this.realtimeTasks[key] != 'undefined') this.realtimeTasks[key].cancel();
         this.realtimeTasks[key] = schedule.scheduleJob(
             {
                 end: Date.now() + 10000,
                 rule: `*/${time / 1000} * * * * *`
-            }, () => {
-                let message = `{"${key}":{"val":${func()},"date":${Math.round(new Date().getTime() / 1000)}}}`
-                this.sendMessage(message)
-            })
+            },
+            () => {
+                const message = `{"${key}":{"val":${func()},"date":${Math.round(new Date().getTime() / 1000)}}}`;
+                this.sendMessage(message);
+            }
+        );
     }
 }
 
@@ -728,38 +749,38 @@ export class BuiltinSwitch {
     state = '';
     change = new Subject<Message>();
 
-    setState(state) {
-        this.state = state
-        return this
+    setState(state: string) {
+        this.state = state;
+        return this;
     }
 
     update() {
-        let message = {}
-        message[this.key] = this.state
-        this.device.sendMessage(message)
+        const message = {};
+        message[this.key] = this.state;
+        this.device.sendMessage(message);
     }
     device: BlinkerDevice;
 }
 
-function formatMess2Device(deviceId, toDevice, data) {
-    // 兼容阿里broker保留deviceType和fromDevice  
-    return `{"deviceType":"OwnApp","data":${data},"fromDevice":"${deviceId}","toDevice":"${toDevice}"}`
+function formatMess2Device(deviceId: string, toDevice: any, data: string) {
+    // 兼容阿里broker保留deviceType和fromDevice
+    return `{"deviceType":"OwnApp","data":${data},"fromDevice":"${deviceId}","toDevice":"${toDevice}"}`;
 }
 
-function formatMess2Grounp(deviceId, toGrounp, data) {
-    return `{"data":${data},"fromDevice":"${deviceId}","toGrounp":"${toGrounp}"}`
+function formatMess2Grounp(deviceId: any, toGrounp: any, data: any) {
+    return `{"data":${data},"fromDevice":"${deviceId}","toGrounp":"${toGrounp}"}`;
 }
 
-function formatMess2StorageTs(deviceId, storageType, data) {
-    return `{"data":${data},"fromDevice":"${deviceId}","toStorage":"${storageType}"}`
+function formatMess2StorageTs(deviceId: string, storageType: string, data: string) {
+    return `{"data":${data},"fromDevice":"${deviceId}","toStorage":"${storageType}"}`;
 }
 
-function formatMess2StorageTt(deviceId, storageType, data) {
-    return `{"data":"${data}","fromDevice":"${deviceId}","toStorage":"${storageType}"}`
+function formatMess2StorageTt(deviceId: string, storageType: string, data: string) {
+    return `{"data":"${data}","fromDevice":"${deviceId}","toStorage":"${storageType}"}`;
 }
 
-function formatMess2StorageOt(deviceId, storageType, data) {
-    return `{"data":${data},"fromDevice":"${deviceId}","toStorage":"${storageType}"}`
+function formatMess2StorageOt(deviceId: string, storageType: string, data: string) {
+    return `{"data":${data},"fromDevice":"${deviceId}","toStorage":"${storageType}"}`;
 }
 
 function isJson(str: string) {
@@ -775,8 +796,8 @@ function isJson(str: string) {
 }
 
 function isNumber(val: string) {
-    var regPos = /^\d+(\.\d+)?$/; //非负浮点数
-    var regNeg = /^(-(([0-9]+\.[0-9]*[1-9][0-9]*)|([0-9]*[1-9][0-9]*\.[0-9]+)|([0-9]*[1-9][0-9]*)))$/; //负浮点数
+    const regPos = /^\d+(\.\d+)?$/; //非负浮点数
+    const regNeg = /^(-(([0-9]+\.[0-9]*[1-9][0-9]*)|([0-9]*[1-9][0-9]*\.[0-9]+)|([0-9]*[1-9][0-9]*)))$/; //负浮点数
     if (regPos.test(val) || regNeg.test(val)) {
         return true;
     } else {
@@ -785,30 +806,26 @@ function isNumber(val: string) {
     }
 }
 
-
 import * as fs from 'fs';
 import { API, SERVER } from './server.config';
 import { clearInterval } from 'timers';
 import { u8aToString } from './fun';
 
-function loadJsonFile(path) {
-    if (fs.existsSync(path))
-        return JSON.parse(fs.readFileSync(path, 'utf8'));
-    else
-        return {}
+function loadJsonFile(path: number | fs.PathLike) {
+    if (fs.existsSync(path)) return JSON.parse(fs.readFileSync(path, 'utf8'));
+    else return {};
 }
 
-function saveJsonFile(path, data) {
+function saveJsonFile(path: number | fs.PathLike, data: any) {
     fs.writeFileSync(path, JSON.stringify(data));
 }
 
-function arrayRemove(array, index) {
-    if (index <= (array.length - 1)) {
-        for (var i = index; i < array.length; i++) {
+function arrayRemove(array: string | any[], index: number) {
+    if (index <= array.length - 1) {
+        for (let i = index; i < array.length; i++) {
             array[i] = array[i + 1];
         }
-    }
-    else {
+    } else {
         // throw new Error('超出最大索引！');
     }
     array.length = array.length - 1;
