@@ -1,29 +1,44 @@
-// import { Blinker } from './blinker.server';
-import HttpServer from './http.server';
+import WebSocketServer from './websocket.server';
 import Wifi from './wifi.server';
-
+import Driver from './unit/L298N';
 class Server {
+    driver: Driver;
+    server: WebSocketServer;
     wifi: Wifi;
-    httpServer: HttpServer;
-    // blinker: Blinker;
-    // auth = '2dcdd31adcec';
-    // ssid = 'ChinaNet-Eqis';
-    // password = '2xhhnwws';
+    auth = '2dcdd31adcec';
+    ssid = 'ChinaNet-Eqis';
+    password = '2xhhnwws';
 
     constructor() {
         console.log('server start');
-        // this.startUp();
-        Wifi.startAp(() => {
-            this.httpServer = new HttpServer();
-        });
+        this.startUp();
     }
+    handler = (msg: string): void => {
+        console.log(this.driver);
+        switch (msg) {
+            case 'right':
+                this.driver.right();
+                break;
+            case 'left':
+                this.driver.left();
+                break;
+            case 'forward':
+                this.driver.forward();
+                break;
+            case 'stop':
+                this.driver.stop();
+                break;
+            default:
+                break;
+        }
+    };
 
     startUp = () => {
+        this.driver = new Driver();
+
         // 连接 WIFI
-        this.wifi = new Wifi({
-            callback: () => {
-                this.httpServer = new HttpServer();
-            }
+        Wifi.startAp(() => {
+            this.server = new WebSocketServer(this.handler);
         });
     };
 }

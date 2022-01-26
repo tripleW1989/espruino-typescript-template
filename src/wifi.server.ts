@@ -4,16 +4,15 @@ type WifiOption = { name?: string; password?: string; callback?: CallBack; APCal
 export default class Wifi {
     isConnect = false;
     ipInfo: any;
-    constructor({ name, password, callback, APCallback }: WifiOption) {
-        this.connect(name, password, callback, APCallback);
+    constructor({ name, password, callback }: WifiOption) {
+        this.connect(name, password, callback);
         Wifi.startAp();
     }
-    connect(name = 'ChinaNet-Eqis', password = '2xhhnwws', callback?: CallBack, APCallback?: CallBack): void {
+    connect(name = 'ChinaNet-Eqis', password = '2xhhnwws', callback?: CallBack): void {
         wifi.connect(name, { password }, (err: any) => {
             if (!err) {
                 console.log('wifi connect success');
                 this.isConnect = true;
-                Wifi.startAp(APCallback);
                 callback && callback();
             } else {
                 console.log('wifi connect fail', err);
